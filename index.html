@@ -1,487 +1,676 @@
-import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInAnonymously, 
-  onAuthStateChanged,
-  signInWithCustomToken
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  updateDoc,
-  deleteDoc,
-  doc,
-  onSnapshot, 
-  query, 
-  orderBy, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { 
-  User, 
-  Plus, 
-  X, 
-  Send, 
-  Smile, 
-  Briefcase, 
-  Palette,
-  Loader2,
-  MapPin,
-  Image as ImageIcon,
-  Camera,
-  Pencil,
-  Trash2
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambodia Local Guides - iOS Style</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* --- IOS DESIGN SYSTEM --- */
+        :root {
+            --bg-color: #000000;
+            --card-bg: #1c1c1e;
+            --card-highlight: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --text-tertiary: #48484a;
+            
+            /* Apple System Colors */
+            --blue: #0a84ff;
+            --orange: #ff9f0a;
+            --red: #ff453a;
+            --green: #30d158;
+            --purple: #bf5af2;
+            --indigo: #5e5ce6;
+            
+            --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --radius-xl: 32px;
+            --radius-l: 24px;
+            --radius-m: 16px;
+        }
 
-// --- Firebase Configuration ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-// --- Components ---
+        body {
+            background-color: #000000;
+            font-family: var(--font-stack);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-primary);
+        }
 
-const Card = ({ profile, currentUser, onEdit }) => {
-  const { name, role, bio, color, photoUrl, userId } = profile;
-  const [imgError, setImgError] = useState(false);
-  
-  // Check if the current user owns this profile
-  const isOwner = currentUser && currentUser.uid === userId;
-  
-  // Dynamic color classes based on selection
-  const colorMap = {
-    blue: "bg-blue-50 border-blue-200 text-blue-900",
-    green: "bg-green-50 border-green-200 text-green-900",
-    purple: "bg-purple-50 border-purple-200 text-purple-900",
-    rose: "bg-rose-50 border-rose-200 text-rose-900",
-    amber: "bg-amber-50 border-amber-200 text-amber-900",
-    slate: "bg-slate-50 border-slate-200 text-slate-900",
-  };
-  
-  const accentColorMap = {
-    blue: "bg-blue-500",
-    green: "bg-green-500",
-    purple: "bg-purple-500",
-    rose: "bg-rose-500",
-    amber: "bg-amber-500",
-    slate: "bg-slate-500",
-  };
+        /* SLIDE CONTAINER */
+        .slide-container {
+            width: 1280px;
+            height: 720px;
+            background-color: #000000;
+            position: absolute;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transform: scale(0.96);
+            padding: 60px 80px;
+            display: flex;
+            flex-direction: column;
+            pointer-events: none; /* Ensure hidden slides don't capture clicks */
+        }
 
-  const themeClass = colorMap[color] || colorMap.slate;
-  const accentClass = accentColorMap[color] || accentColorMap.slate;
+        .slide-container.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            z-index: 10;
+            pointer-events: auto;
+        }
 
-  return (
-    <div className={`group relative p-5 rounded-2xl border shadow-sm transition-all hover:shadow-md hover:-translate-y-1 flex flex-col gap-4 break-inside-avoid mb-6 ${themeClass}`}>
-      {/* Edit Button (Only visible to owner) */}
-      {isOwner && (
-        <button 
-          onClick={() => onEdit(profile)}
-          className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white rounded-full shadow-sm text-gray-600 hover:text-blue-600 transition-all opacity-0 group-hover:opacity-100 z-10"
-          title="Edit your profile"
-        >
-          <Pencil size={14} />
-        </button>
-      )}
+        /* TYPOGRAPHY */
+        h1.main-title {
+            font-size: 80px;
+            font-weight: 800;
+            letter-spacing: -2px;
+            line-height: 1.05;
+            background: linear-gradient(180deg, #fff, #a1a1aa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
 
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3 w-full pr-8"> 
-          {/* Photo Logic: Show Image if valid, otherwise Initial */}
-          <div className="relative shrink-0">
-            {photoUrl && !imgError ? (
-              <img 
-                src={photoUrl} 
-                alt={name}
-                onError={() => setImgError(true)}
-                className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm bg-gray-200"
-              />
-            ) : (
-              <div className={`w-14 h-14 rounded-full ${accentClass} flex items-center justify-center text-white font-bold text-xl shadow-inner border-2 border-white`}>
-                {name ? name.charAt(0).toUpperCase() : '?'}
-              </div>
-            )}
-            {/* Small Local Guide Star/Badge decoration */}
-            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-               <MapPin size={12} className="text-orange-500" fill="currentColor" />
-            </div>
-          </div>
-          
-          <div className="min-w-0">
-            <h3 className="font-bold text-lg leading-tight truncate">{name || 'Anonymous'}</h3>
-            <p className="text-xs opacity-70 uppercase tracking-wide font-semibold mt-0.5 truncate">{role || 'Local Guide'}</p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-white/60 p-3 rounded-xl backdrop-blur-sm min-h-[60px] relative">
-        {/* Quote decoration */}
-        <span className="absolute top-2 left-2 text-4xl leading-none opacity-10 font-serif">"</span>
-        <p className="text-sm leading-relaxed whitespace-pre-wrap relative z-10 pt-1">{bio || "Excited to explore Cambodia!"}</p>
-      </div>
-    </div>
-  );
-};
+        h2.slide-header {
+            font-size: 44px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
 
-const ProfileModal = ({ isOpen, onClose, user, initialData }) => {
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
-  const [bio, setBio] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [color, setColor] = useState('blue');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+        h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
 
-  // Initialize form when opening
-  useEffect(() => {
-    if (isOpen) {
-      if (initialData) {
-        setName(initialData.name || '');
-        setRole(initialData.role || '');
-        setBio(initialData.bio || '');
-        setPhotoUrl(initialData.photoUrl || '');
-        setColor(initialData.color || 'blue');
-      } else {
-        // Reset if adding new
-        setName('');
-        setRole('');
-        setBio('');
-        setPhotoUrl('');
-        setColor('blue');
-      }
-    }
-  }, [isOpen, initialData]);
+        p, li {
+            font-size: 20px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
 
-  const colors = [
-    { id: 'blue', class: 'bg-blue-500', label: 'Blue' },
-    { id: 'purple', class: 'bg-purple-500', label: 'Purple' },
-    { id: 'green', class: 'bg-green-500', label: 'Green' },
-    { id: 'rose', class: 'bg-rose-500', label: 'Rose' },
-    { id: 'amber', class: 'bg-amber-500', label: 'Amber' },
-    { id: 'slate', class: 'bg-slate-500', label: 'Slate' },
-  ];
+        strong { color: var(--text-primary); font-weight: 600; }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+        /* BENTO GRID LAYOUTS */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; height: 100%; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; height: 100%; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; height: 100%; }
+        .grid-sidebar { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; height: 100%; }
 
-    setIsSubmitting(true);
-    try {
-      if (initialData) {
-        // UPDATE existing
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_profiles', initialData.id);
-        await updateDoc(docRef, {
-          name: name.trim(),
-          role: role.trim(),
-          bio: bio.trim(),
-          photoUrl: photoUrl.trim(),
-          color,
-          // We don't update userId or timestamp usually, to keep original creation info
-        });
-      } else {
-        // CREATE new
-        const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'user_profiles');
-        await addDoc(collectionRef, {
-          name: name.trim(),
-          role: role.trim(),
-          bio: bio.trim(),
-          photoUrl: photoUrl.trim(),
-          color,
-          userId: user.uid,
-          timestamp: serverTimestamp()
-        });
-      }
-      onClose();
-    } catch (error) {
-      console.error("Error saving profile:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!initialData) return;
-    if (!window.confirm("Are you sure you want to delete this profile?")) return;
-
-    setIsDeleting(true);
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_profiles', initialData.id);
-      await deleteDoc(docRef);
-      onClose();
-    } catch (error) {
-      console.error("Error deleting profile:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  const isEditMode = !!initialData;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-        <div className="p-5 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <MapPin size={22} className="text-red-600" />
-            {isEditMode ? 'Edit Profile' : 'Join the Guides'}
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Color Picker */}
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Card Color</label>
-            <div className="flex gap-3 justify-between sm:justify-start bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200">
-              {colors.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setColor(c.id)}
-                  title={c.label}
-                  className={`w-9 h-9 rounded-full ${c.class} transition-all duration-200 shadow-sm ${color === c.id ? 'ring-4 ring-offset-2 ring-gray-200 scale-110' : 'hover:scale-110 opacity-60 hover:opacity-100'}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Name</label>
-                <div className="relative">
-                  <Smile className="absolute left-3 top-3 text-gray-400" size={18} />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Your Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Google Maps Level</label>
-              <div className="relative">
-                <Briefcase className="absolute left-3 top-3 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="e.g. Level 6"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Photo URL <span className="text-xs font-normal text-gray-400">(Optional)</span></label>
-              <div className="relative">
-                <Camera className="absolute left-3 top-3 text-gray-400" size={18} />
-                <input
-                  type="url"
-                  placeholder="https://example.com/my-photo.jpg"
-                  value={photoUrl}
-                  onChange={(e) => setPhotoUrl(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                />
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1.5 ml-1">Paste a link to your Google profile photo or any image.</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Short Bio</label>
-              <textarea
-                placeholder="What do you love about Cambodia?"
-                rows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            {isEditMode && (
-               <button
-                 type="button"
-                 onClick={handleDelete}
-                 disabled={isDeleting || isSubmitting}
-                 className="px-4 py-3.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 font-semibold transition-colors flex items-center justify-center"
-                 title="Delete Profile"
-               >
-                 {isDeleting ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
-               </button>
-            )}
-            <button
-              type="submit"
-              disabled={isSubmitting || !name}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:shadow-blue-300 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : (isEditMode ? 'Save Changes' : <Send size={18} />)}
-              {isEditMode ? '' : 'Join Board'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [profiles, setProfiles] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // 1. Initialize Auth
-  useEffect(() => {
-    const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
-        await signInAnonymously(auth);
-      }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Fetch Data (Real-time)
-  useEffect(() => {
-    if (!user) return;
-
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'user_profiles');
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      // Sort in memory (newest first)
-      docs.sort((a, b) => {
-        const tA = a.timestamp?.seconds || 0;
-        const tB = b.timestamp?.seconds || 0;
-        return tB - tA;
-      });
-
-      setProfiles(docs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Data fetch error:", error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleAddNew = () => {
-    setEditingProfile(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEdit = (profile) => {
-    setEditingProfile(profile);
-    setIsModalOpen(true);
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-red-100">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-red-600 text-white p-2 rounded-xl shadow-red-200 shadow-md">
-              <MapPin size={24} />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-700 via-red-600 to-blue-700">
-                Cambodia Local Guides
-              </h1>
-              <p className="text-xs text-gray-500 font-medium hidden sm:block">Connecting explorers across the Kingdom</p>
-            </div>
-          </div>
-          
-          <button
-            onClick={handleAddNew}
-            className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white pl-4 pr-5 py-2.5 rounded-full text-sm font-bold transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 active:scale-95"
-          >
-            <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-            <span className="hidden sm:inline">Add My Profile</span>
-            <span className="sm:hidden">Join</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        /* IOS CARD COMPONENT */
+        .ios-card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-l);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
         
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-            <Loader2 className="animate-spin mb-4 text-blue-500" size={40} />
-            <p>Loading the community...</p>
-          </div>
-        ) : profiles.length === 0 ? (
-          <div className="text-center py-24 bg-white rounded-[2rem] border border-dashed border-gray-300 mx-auto max-w-2xl shadow-sm">
-            <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <MapPin size={48} />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-3">No Guides Yet</h2>
-            <p className="text-gray-500 mb-8 max-w-md mx-auto">The board is waiting for the first explorer. Share your profile and start the community!</p>
-            <button
-              onClick={handleAddNew}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
-            >
-              <Plus size={20} />
-              Create First Profile
-            </button>
-          </div>
-        ) : (
-          /* Masonry-ish Grid Layout */
-          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
-            {profiles.map((profile) => (
-              <Card 
-                key={profile.id} 
-                profile={profile} 
-                currentUser={user}
-                onEdit={handleEdit}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+        .ios-card.glass {
+            background: rgba(28, 28, 30, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
 
-      {/* Footer */}
-      <footer className="py-10 text-center border-t border-gray-200 mt-12 bg-white">
-        <p className="text-gray-500 text-sm font-medium">© {new Date().getFullYear()} Cambodia Local Guides Community.</p>
-        <div className="flex justify-center gap-4 mt-2">
-          <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-          <div className="w-2 h-2 rounded-full bg-red-600"></div>
-          <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+        /* APP ICON STYLE */
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .bg-blue { background: linear-gradient(135deg, #409cff, var(--blue)); }
+        .bg-orange { background: linear-gradient(135deg, #ffb340, var(--orange)); }
+        .bg-red { background: linear-gradient(135deg, #ff6b61, var(--red)); }
+        .bg-green { background: linear-gradient(135deg, #60d97e, var(--green)); }
+        .bg-purple { background: linear-gradient(135deg, #d384f6, var(--purple)); }
+
+        /* LIST VIEW (Settings Style) */
+        .ios-list {
+            width: 100%;
+            background-color: var(--card-highlight);
+            border-radius: var(--radius-m);
+            padding: 0 20px;
+        }
+
+        .ios-list-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .ios-list-item:last-child { border-bottom: none; }
+        
+        .ios-list-item i.list-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            font-size: 16px;
+            color: white;
+        }
+
+        /* BADGES */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 100px;
+            background: rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+            display: inline-block;
+        }
+        
+        /* BIG NUMBERS */
+        .hero-stat {
+            font-size: 140px;
+            font-weight: 800;
+            letter-spacing: -4px;
+            color: var(--orange);
+            line-height: 1;
+        }
+
+        /* NAVIGATION CONTROLS */
+        .dock {
+            position: fixed;
+            bottom: 30px;
+            background: rgba(44, 44, 46, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            padding: 10px 20px;
+            border-radius: 100px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.15);
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .dock button {
+            background: rgba(255,255,255,0.05);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 1;
+            transition: all 0.2s ease;
+            width: 44px; /* Larger hit target */
+            height: 44px; /* Larger hit target */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dock button:hover { 
+            background: rgba(255,255,255,0.2); 
+            transform: scale(1.05);
+        }
+        
+        .dock button:active {
+            transform: scale(0.95);
+        }
+
+        .dock span { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: 14px; font-weight: 600; margin: 0 5px; }
+
+        /* PRINT STYLES */
+        @media print {
+            body { background: white; }
+            .slide-container {
+                position: relative;
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: none !important;
+                page-break-after: always;
+                background: black;
+                border: 1px solid #333;
+            }
+            .dock { display: none; }
+        }
+    </style>
+</head>
+<body tabindex="0" style="outline: none;">
+
+<!-- NAVIGATION DOCK -->
+<div class="dock">
+    <button id="prevBtn" title="Previous Slide"><i class="fa-solid fa-chevron-left"></i></button>
+    <span id="slideCounter">1 / 14</span>
+    <button id="nextBtn" title="Next Slide"><i class="fa-solid fa-chevron-right"></i></button>
+    <div style="width:1px; height:20px; background:rgba(255,255,255,0.2); margin: 0 5px;"></div>
+    <button id="exportBtn" title="Export to PDF"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
+</div>
+
+<!-- SLIDE 1: Title -->
+<div class="slide-container active">
+    <div class="ios-card glass" style="flex:1; align-items:center; text-align:center;">
+        <div style="width:120px; height:120px; background: linear-gradient(135deg, #ff9f0a, #ff3b30); border-radius: 30px; display:flex; align-items:center; justify-content:center; font-size:60px; color:white; margin-bottom:40px; box-shadow:0 20px 50px rgba(255, 159, 10, 0.3);">
+            <i class="fa-solid fa-map-location-dot"></i>
         </div>
-      </footer>
-
-      {/* Modal - Now handles both Add and Edit */}
-      <ProfileModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        user={user}
-        initialData={editingProfile}
-      />
+        <h1 class="main-title">Cambodia<br>Local Guides</h1>
+        <p style="font-size:24px; max-width:600px; margin-top:10px;">Strengthening Digital Sovereignty, Border Integrity, and Community Mapping</p>
+        
+        <div style="margin-top:auto; display:flex; gap:20px;">
+            <div class="badge">Project Lead: Sophat CHY</div>
+            <div class="badge">Community Driven</div>
+        </div>
     </div>
-  );
-}
+</div>
+
+<!-- SLIDE 2: Who We Are -->
+<div class="slide-container">
+    <h2 class="slide-header"><span class="app-icon bg-blue" style="margin:0; width:40px; height:40px; font-size:18px;"><i class="fa-solid fa-users"></i></span> Who We Are</h2>
+    <div class="grid-2">
+        <div class="ios-card">
+            <h3>The Community</h3>
+            <p>A volunteer-driven national community contributing to Google Maps. We focus on accuracy, safety, and respectful digital representation of Cambodia.</p>
+            <p style="margin-top:20px; color:white;">Members from across the country.</p>
+        </div>
+        <div class="ios-card" style="background:transparent; padding:0; justify-content:start;">
+            <div class="ios-list">
+                <div class="ios-list-item"><i class="list-icon bg-blue fa-solid fa-passport"></i> Digital Citizenship</div>
+                <div class="ios-list-item"><i class="list-icon bg-green fa-solid fa-crosshairs"></i> Mapping Accuracy</div>
+                <div class="ios-list-item"><i class="list-icon bg-orange fa-solid fa-plane"></i> Digital Tourism Visibility</div>
+                <div class="ios-list-item"><i class="list-icon bg-red fa-solid fa-flag"></i> National Digital Interests</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 3: Why This Matters -->
+<div class="slide-container">
+    <h2 class="slide-header">Why This Matters</h2>
+    <div class="grid-2">
+        <div class="ios-card">
+            <div class="app-icon bg-indigo"><i class="fa-solid fa-globe"></i></div>
+            <h3>Digital Asset</h3>
+            <p>The digital map is a national asset. It shapes public perception, tourism trust, and business visibility.</p>
+        </div>
+        <div class="ios-card" style="border: 1px solid var(--red);">
+            <div class="app-icon bg-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 style="color:var(--red);">The Risk</h3>
+            <p>Inaccurate data can harm Cambodia’s reputation, spread misinformation, and create social or political sensitivity.</p>
+            <p style="margin-top:20px; font-weight:600; color:white;">Community-led monitoring is essential.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 4: Community Strength -->
+<div class="slide-container">
+    <h2 class="slide-header">Community Strength</h2>
+    <div class="grid-sidebar">
+        <div class="ios-card bg-blue" style="background: var(--blue);">
+            <h3 style="color:white;">Capable & Structured</h3>
+            <p style="color:rgba(255,255,255,0.8);">We operate beyond casual volunteering with a stable, active core team.</p>
+        </div>
+        <div class="ios-card">
+            <h3>Capabilities</h3>
+            <div style="width:100%; margin-top:20px;">
+                <div class="ios-list">
+                    <div class="ios-list-item"><i class="list-icon bg-indigo fa-solid fa-code"></i> Technical & Analytical Members</div>
+                    <div class="ios-list-item"><i class="list-icon bg-green fa-solid fa-check-double"></i> Data Verification</div>
+                    <div class="ios-list-item"><i class="list-icon bg-orange fa-solid fa-chart-pie"></i> Mapping Analysis</div>
+                    <div class="ios-list-item"><i class="list-icon bg-purple fa-solid fa-server"></i> Platform Management</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 5: Investigation (Stats) -->
+<div class="slide-container">
+    <div class="badge" style="align-self:center;">Investigation & Reports</div>
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div class="hero-stat">560+</div>
+        <h2 style="margin-top:10px;">Violations Documented</h2>
+        <p>Conducting a nationwide investigation into map abuse.</p>
+    </div>
+    <div class="grid-3" style="height:auto; margin-top:40px;">
+        <div class="ios-card" style="align-items:center; text-align:center;">
+            <i class="fa-solid fa-ban" style="font-size:30px; color:var(--red); margin-bottom:15px;"></i>
+            <strong>Harassment</strong>
+            <p style="font-size:16px;">Offensive names</p>
+        </div>
+        <div class="ios-card" style="align-items:center; text-align:center;">
+            <i class="fa-solid fa-clone" style="font-size:30px; color:var(--red); margin-bottom:15px;"></i>
+            <strong>Duplication</strong>
+            <p style="font-size:16px;">Fake locations</p>
+        </div>
+        <div class="ios-card" style="align-items:center; text-align:center;">
+            <i class="fa-solid fa-pen-to-square" style="font-size:30px; color:var(--red); margin-bottom:15px;"></i>
+            <strong>Abuse</strong>
+            <p style="font-size:16px;">Misleading edits</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 6: Technology -->
+<div class="slide-container">
+    <h2 class="slide-header">Community Platform</h2>
+    <div class="grid-3">
+        <div class="ios-card">
+            <div class="app-icon bg-green"><i class="fa-solid fa-file-import"></i></div>
+            <h3>Reporting</h3>
+            <p>Structured submission process.</p>
+        </div>
+        <div class="ios-card">
+            <div class="app-icon bg-blue"><i class="fa-solid fa-map"></i></div>
+            <h3>Visuals</h3>
+            <p>Interactive map dashboards.</p>
+        </div>
+        <div class="ios-card">
+            <div class="app-icon bg-purple"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <h3>AI Tools</h3>
+            <p>Duplicate detection & translation.</p>
+        </div>
+        <div class="ios-card">
+            <div class="app-icon bg-orange"><i class="fa-solid fa-users"></i></div>
+            <h3>Team</h3>
+            <p>Collaboration tools.</p>
+        </div>
+        <div class="ios-card">
+            <div class="app-icon bg-indigo"><i class="fa-solid fa-mobile-screen"></i></div>
+            <h3>PWA</h3>
+            <p>Offline mobile support.</p>
+        </div>
+        <div class="ios-card glass">
+            <h3>Result</h3>
+            <p>Accuracy & Transparency.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 7: Objectives Overview -->
+<div class="slide-container">
+    <h2 class="slide-header">New Project Objectives</h2>
+    <div class="grid-2">
+        <div class="ios-card">
+            <div class="badge" style="background:var(--red); color:white;">Objective 1</div>
+            <h3>Border Integrity</h3>
+            <p>Address border-sensitive and disputed locations.</p>
+        </div>
+        <div class="ios-card">
+            <div class="badge" style="background:var(--orange); color:white;">Objective 2</div>
+            <h3>Recurring Violations</h3>
+            <p>Resolve previously identified issues.</p>
+        </div>
+        <div class="ios-card">
+            <div class="badge" style="background:var(--green); color:white;">Objective 3</div>
+            <h3>Active Community</h3>
+            <p>Keep Local Guides active year-round.</p>
+        </div>
+        <div class="ios-card">
+            <div class="badge" style="background:var(--blue); color:white;">Objective 4</div>
+            <h3>Street View</h3>
+            <p>Documentation project.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 8: Objective 1 -->
+<div class="slide-container">
+    <h2 class="slide-header" style="color:var(--red);">Border-Sensitive Locations</h2>
+    <div class="grid-sidebar">
+        <div class="ios-card glass">
+            <div class="app-icon bg-red"><i class="fa-solid fa-shield-halved"></i></div>
+            <h3>The Goal</h3>
+            <p>Protect Cambodia’s digital territorial integrity.</p>
+        </div>
+        <div class="ios-card">
+            <h3>Action Plan</h3>
+            <ul style="margin-top:20px; list-style:none; display:flex; flex-direction:column; gap:20px;">
+                <li><i class="fa-solid fa-circle-check" style="color:var(--red); margin-right:10px;"></i> Monitor locations related to sensitive border areas.</li>
+                <li><i class="fa-solid fa-circle-check" style="color:var(--red); margin-right:10px;"></i> Identify inaccurate names or provocative edits.</li>
+                <li><i class="fa-solid fa-circle-check" style="color:var(--red); margin-right:10px;"></i> Carefully verify data to avoid misinformation.</li>
+                <li><i class="fa-solid fa-circle-check" style="color:var(--red); margin-right:10px;"></i> Produce structured findings for follow-up.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 9: Objective 2 -->
+<div class="slide-container">
+    <h2 class="slide-header" style="color:var(--orange);">Recurring Violations</h2>
+    <div class="grid-2">
+        <div class="ios-card">
+            <h3>Re-audit</h3>
+            <p>Check locations flagged in past reports.</p>
+        </div>
+        <div class="ios-card">
+            <h3>Track</h3>
+            <p>Monitor unresolved cases and appearing violations.</p>
+        </div>
+        <div class="ios-card">
+            <h3>Records</h3>
+            <p>Maintain internal case records to prevent repeated abuse.</p>
+        </div>
+        <div class="ios-card glass">
+            <h3>Outcome</h3>
+            <strong style="font-size:24px;">Long-term impact.</strong>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 10: Objective 3 -->
+<div class="slide-container">
+    <h2 class="slide-header" style="color:var(--green);">Active Community</h2>
+    <div class="grid-3">
+        <div class="ios-card">
+            <div class="app-icon bg-green"><i class="fa-solid fa-people-arrows"></i></div>
+            <h3>Coordination</h3>
+            <p>Continuous core team work and meet-ups.</p>
+        </div>
+        <div class="ios-card">
+            <div class="app-icon bg-green"><i class="fa-solid fa-chalkboard-user"></i></div>
+            <h3>Training</h3>
+            <p>Verification methods & ethical behavior.</p>
+        </div>
+        <div class="ios-card">
+            <div class="app-icon bg-green"><i class="fa-solid fa-child-reaching"></i></div>
+            <h3>Youth</h3>
+            <p>Leadership and skill development.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 11: Objective 4 -->
+<div class="slide-container">
+    <h2 class="slide-header" style="color:var(--blue);">Street View Project</h2>
+    <div class="grid-sidebar">
+        <div class="ios-card">
+            <h3>Focus Areas</h3>
+            <div class="ios-list" style="margin-top:20px;">
+                <div class="ios-list-item">Public Roads</div>
+                <div class="ios-list-item">Tourism Destinations</div>
+                <div class="ios-list-item">Underserved Locations</div>
+            </div>
+        </div>
+        <div class="ios-card glass">
+            <div class="app-icon bg-blue"><i class="fa-solid fa-street-view"></i></div>
+            <h3>Visual Presence</h3>
+            <p style="font-size:24px; color:white;">Capture Street View imagery to improve visual accuracy, accessibility, and public trust.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 12: How We Work -->
+<div class="slide-container">
+    <h2 class="slide-header">Our Operating Approach</h2>
+    <div class="ios-card">
+        <div class="ios-list" style="background:transparent; padding:0;">
+            <div class="ios-list-item"><i class="list-icon bg-indigo fa-solid fa-sitemap"></i> Community-led, but structured</div>
+            <div class="ios-list-item"><i class="list-icon bg-green fa-solid fa-chart-line"></i> Data-driven and evidence-based</div>
+            <div class="ios-list-item"><i class="list-icon bg-blue fa-solid fa-laptop-code"></i> Technically supported by platform tools</div>
+            <div class="ios-list-item"><i class="list-icon bg-orange fa-solid fa-file-contract"></i> Transparent documentation</div>
+            <div class="ios-list-item"><i class="list-icon bg-red fa-solid fa-flag"></i> Aligned with national digital goals</div>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 13: Expected Impact -->
+<div class="slide-container">
+    <h2 class="slide-header">Expected Impact</h2>
+    <div class="grid-4">
+        <div class="ios-card">
+            <i class="fa-solid fa-shield-cat" style="font-size:32px; color:var(--blue); margin-bottom:15px;"></i>
+            <strong>Protection</strong>
+            <p style="font-size:16px;">Stronger map presence.</p>
+        </div>
+        <div class="ios-card">
+            <i class="fa-solid fa-xmark" style="font-size:32px; color:var(--red); margin-bottom:15px;"></i>
+            <strong>Reduction</strong>
+            <p style="font-size:16px;">Less fake locations.</p>
+        </div>
+        <div class="ios-card">
+            <i class="fa-solid fa-user-graduate" style="font-size:32px; color:var(--green); margin-bottom:15px;"></i>
+            <strong>Citizens</strong>
+            <p style="font-size:16px;">Skilled digital users.</p>
+        </div>
+        <div class="ios-card">
+            <i class="fa-solid fa-handshake" style="font-size:32px; color:var(--orange); margin-bottom:15px;"></i>
+            <strong>Trust</strong>
+            <p style="font-size:16px;">Better tourism confidence.</p>
+        </div>
+    </div>
+</div>
+
+<!-- SLIDE 14: Contact -->
+<div class="slide-container">
+    <div class="ios-card glass" style="flex:1; align-items:center; text-align:center; justify-content:center;">
+        <div class="app-icon bg-blue" style="width:80px; height:80px; font-size:32px; border-radius:20px;"><i class="fa-solid fa-envelope"></i></div>
+        <h2 style="font-size:60px; margin-bottom:20px;">Let's Collaborate</h2>
+        <p style="font-size:24px; color:white; max-width:700px;">Open collaboration with institutions for a safe, accurate, and dignified digital Cambodia.</p>
+        
+        <div style="margin-top:60px; background:var(--card-highlight); padding:30px; border-radius:20px; text-align:left; min-width:500px;">
+            <div style="margin-bottom:15px;">
+                <span style="color:var(--text-secondary); font-size:14px; text-transform:uppercase;">Website</span><br>
+                <strong style="font-size:24px; color:var(--blue);">www.cambodialocalguides.net</strong>
+            </div>
+            <div>
+                <span style="color:var(--text-secondary); font-size:14px; text-transform:uppercase;">Email</span><br>
+                <strong style="font-size:24px; color:white;">sophatchy@gmail.com</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const slides = document.querySelectorAll('.slide-container');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const counter = document.getElementById('slideCounter');
+        let current = 0;
+
+        // --- FOCUS MANAGEMENT FOR ARROW KEYS ---
+        // Force focus to the body so keyboard events work immediately
+        function grabFocus() {
+            window.focus();
+            if (document.activeElement !== document.body) {
+                document.body.focus();
+            }
+        }
+        
+        // Grab focus on load
+        grabFocus();
+        
+        // Grab focus on any click
+        document.addEventListener('click', grabFocus);
+        // ----------------------------------------
+
+        function showSlide(index) {
+            if(index < 0) index = 0;
+            if(index >= slides.length) index = slides.length - 1;
+            current = index;
+            
+            slides.forEach((s, i) => {
+                if(i === current) s.classList.add('active');
+                else s.classList.remove('active');
+            });
+            
+            counter.textContent = `${current + 1} / ${slides.length}`;
+            
+            // Visual feedback for disabled state
+            prevBtn.style.opacity = current === 0 ? 0.3 : 1;
+            prevBtn.style.pointerEvents = current === 0 ? 'none' : 'auto';
+            
+            nextBtn.style.opacity = current === slides.length - 1 ? 0.3 : 1;
+            nextBtn.style.pointerEvents = current === slides.length - 1 ? 'none' : 'auto';
+        }
+
+        // Add event listeners
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            showSlide(current - 1);
+        });
+
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            showSlide(current + 1);
+        });
+
+        exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            window.print();
+        });
+
+        // Keyboard navigation attached to window for better reliability
+        window.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault(); // Prevent scrolling if overflow exists
+                showSlide(current + 1);
+            }
+            if(e.key === 'ArrowLeft') {
+                e.preventDefault();
+                showSlide(current - 1);
+            }
+        });
+
+        // Initialize
+        showSlide(0);
+    });
+</script>
+
+</body>
+</html>
+```
